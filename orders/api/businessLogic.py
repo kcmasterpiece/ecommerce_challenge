@@ -1,4 +1,5 @@
 from api.models import *
+from django.db.models import Sum
 
 class OrderMethods:
     @staticmethod
@@ -19,3 +20,14 @@ class OrderMethods:
         for p in products:
             orderItem = OrderItems.objects.create(product=p, productName=p.name, price=p.price, quantity=1, order=order)
         return order
+
+    @staticmethod
+    def number_purchased_by_customer_and_category():
+        """Returns the same results as the SQL query in question 3"""
+        return OrderItems.objects.values(
+                'order__customer_id',
+                'order__customer__first_name',
+                'product__productcategories__category__categoryId',
+                'product__productcategories__category__name')\
+                    .annotate(number_purchased=Sum('quantity'))
+

@@ -1,6 +1,8 @@
 from django.test import TestCase
+from django.db import connection
 from api.models import Customers, Products, Categories, Orders, OrderItems, ProductCategories
 from api.businessLogic import OrderMethods
+import generate_data
 # Create your tests here.
 
 class DataModelTest(TestCase):
@@ -123,3 +125,35 @@ class DataModelTest(TestCase):
         OrderMethods.createOrder(items, customer=customer) 
 
         self.assertGreater(len(Orders.objects.filter(customer=customer)), 1)
+
+    def test_order_method_number_purchased_by_customer_by_category(self):
+        generate_data.main()
+        
+        def dictfetchall(cursor):
+            "Return all rows from a cursor as a dict"
+            columns = [col[0] for col in cursor.description]
+            return [
+                dict(zip(columns, row))
+                for row in cursor.fetchall()
+            ]
+        cursor = connection.cursor()
+        query = '''
+            SELECT customerId as 'order__customer_id', first_name as 'order__customer__first_name', categoryId as 'product__productcategories__category__categoryId',
+                c.name as 'product__productcategories__category__name', sum(oi.quantity) as 'number_purchased'  
+            FROM api_customers cus 
+            INNER JOIN api_orders o on o.customer_id = cus.customerId 
+            INNER JOIN api_orderItems oi  on oi.order_id = o.orderId 
+            INNER JOIN api_products p   on p.productId = oi.product_id 
+            INNER JOIN api_productcategories pc  on p.productId = pc.product_id 
+            INNER JOIN api_categories c  on pc.category_id = c.categoryId 
+            GROUP BY customerId, first_name, categoryId, c.name; '''
+        cursor.execute(query)
+        results = dictfetchall(cursor)
+        ormResults = OrderMethods.number_purchased_by_customer_and_category()
+        # since raw query returns value as 'Decimal('n')', convert values
+        for i in range(0,len(results)):
+            results[i]['number_purchased'] = int(results[i]['number_purchased'])
+        
+        for row in ormResults:
+            self.assertIn(row, results)    
+

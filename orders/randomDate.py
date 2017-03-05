@@ -14,7 +14,6 @@ def strTimeProp(start, end, f, prop):
     etime = time.mktime(time.strptime(end, f))
 
     ptime = stime + prop * (etime - stime)
-
     return time.strftime(f, time.localtime(ptime))
 
 
