@@ -51,11 +51,9 @@ class DataModelTest(TestCase):
     
     def test_can_create_orders(self):
         """Tests that orders can be created"""
-        product1 = Products.objects.create(name='13 inch MacBook Pro', price='1799.00')
-        product2 = Products.objects.create(name='15 inch MacBook Pro', price='1999.00')
-        product3 = Products.objects.create(name='17 inch MacBook Pro', price='2199.00')
-        items = [product1, product2, product3]
-     
+        items = [Products.objects.create(name='13 inch MacBook Pro', price='1799.00'),
+                 Products.objects.create(name='15 inch MacBook Pro', price='1999.00'),
+                 Products.objects.create(name='17 inch MacBook Pro', price='2199.00')]
         customer = Customers.objects.create(first_name='Bob',last_name='Smith')
         orderTotal = sum(float(p.price) for p in items)
         order = Orders.objects.create(orderTotal = orderTotal, customer=customer)
