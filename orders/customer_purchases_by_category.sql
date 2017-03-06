@@ -1,3 +1,4 @@
+-- Answer to question 3 --
 SELECT customerId as 'customer_id', first_name as 'customer_first_name', categoryId as 'category_id', c.name as 'category_name', sum(oi.quantity) as 'number_purchased'
 FROM api_customers cus
 INNER JOIN api_orders o
