@@ -18,4 +18,5 @@ from django.contrib import admin
 from . import views
 urlpatterns = [
     url(r'^customers/orders/([0-9]+)$', views.displayCustomerOrders),
+    url(r'^reporting/products/sales$', views.productSalesByPeriod),
 ]

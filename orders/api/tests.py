@@ -1,8 +1,13 @@
+from datetime import datetime, timedelta
 from django.test import TestCase
 from django.db import connection
+from django.db.models import Sum
+from django.utils import timezone
 import json
+import pytz
 from api.models import Customers, Products, Categories, Orders, OrderItems, ProductCategories
 from api.businessLogic import OrderMethods
+from api.queryHelper import QueryHelper
 import generate_data
 # Create your tests here.
 
@@ -130,17 +135,13 @@ class LogicTest(TestCase):
 
 
 class QueryTest(TestCase):
+    @classmethod
+    def setUpClass(self):
+        super(QueryTest, self).setUpClass()
+        generate_data.main()
+
     def test_order_method_number_purchased_by_customer_by_category(self):
         """Tests that sql query in question 3 and orm solution in question 4 match"""
-        generate_data.main()
-        
-        def dictfetchall(cursor):
-            "Return all rows from a cursor as a dict"
-            columns = [col[0] for col in cursor.description]
-            return [
-                dict(zip(columns, row))
-                for row in cursor.fetchall()
-            ]
         cursor = connection.cursor()
         query = '''
             SELECT customerId as 'order__customer_id', first_name as 'order__customer__first_name', categoryId as 'product__productcategories__category__categoryId',
@@ -153,7 +154,7 @@ class QueryTest(TestCase):
             INNER JOIN api_categories c  on pc.category_id = c.categoryId 
             GROUP BY customerId, first_name, categoryId, c.name; '''
         cursor.execute(query)
-        results = dictfetchall(cursor)
+        results = QueryHelper.dictfetchall(cursor)
         ormResults = OrderMethods.number_purchased_by_customer_and_category()
         # since raw query returns value as 'Decimal('n')', convert values
         for i in range(0,len(results)):
@@ -172,13 +173,70 @@ class ViewsTest(TestCase):
         """Tests that the api returns orders for a particular customer"""
 
         c = Customers.objects.all()
+        orders = Orders.objects.filter(customer=c[0])
         response = self.client.get('/api/customers/orders/' + str(c[0].customerId))
         header, header_value = response._headers['content-type'] 
         jsonResponse = json.loads(response.content)
 
         self.assertEquals(header_value, 'application/json')
         self.assertEquals(c[0].customerId, jsonResponse['customer']['customerId'])
-        orders = Orders.objects.filter(customer=c[0])
         self.assertEquals(len(orders), len(jsonResponse['orders']))
 
+    def test_api_returns_product_sales_by_period_week(self):
+        """Tests that the api returns product sales by in a particular week"""
+        urldf = '%m-%d-%Y'
+        dateToCheck = Orders.objects.all().values('orderDate')[0]['orderDate']
+        # set date to Sunday aka beginning of week
+        sd = (dateToCheck + timedelta(days=0-int(dateToCheck.strftime('%w'))))
+        ed = (sd + timedelta(weeks=1))
+        test_url = '/api/reporting/products/sales?startdate={sd}&enddate={ed}&interval=week'.format(
+                sd=sd.strftime(urldf),
+                ed=ed.strftime(urldf))
+        response = self.client.get(test_url)
+        oi = OrderItems.objects.filter(order__orderDate__range=[sd,ed]).values('product_id')\
+                .annotate(quantity_sold=Sum('quantity'), product_sales_revenue=Sum('price'))
+        body = json.loads(response.content)
+        for r in body['results']:
+            qs = oi.filter(product_id=r['product_id']).values('quantity_sold')
+            ps = oi.filter(product_id=r['product_id']).values('product_sales_revenue')
+            self.assertEquals(int(r['quantity_sold']), qs[0]['quantity_sold'])
+            self.assertEquals(float(r['product_sales_revenue']), float(ps[0]['product_sales_revenue']))
+
+    def test_api_returns_product_sales_by_period_day(self):
+        """Tests that the api returns product sales by in a particular day"""
+        urldf = '%m-%d-%Y'
+        dateToCheck = Orders.objects.all().values('orderDate')[0]['orderDate']
+        sd = dateToCheck
+        ed = (dateToCheck + timedelta(days=1))
+        test_url = '/api/reporting/products/sales?startdate={sd}&enddate={ed}&interval=day'.format(
+                sd=sd.strftime(urldf),
+                ed=ed.strftime(urldf))
+        response = self.client.get(test_url)
+        oi = OrderItems.objects.filter(order__orderDate__range=[sd,ed]).values('product_id')\
+                .annotate(quantity_sold=Sum('quantity'), product_sales_revenue=Sum('price'))
+        body = json.loads(response.content)
+        for r in body['results']:
+            qs = oi.filter(product_id=r['product_id']).values('quantity_sold')
+            ps = oi.filter(product_id=r['product_id']).values('product_sales_revenue')
+            self.assertEquals(int(r['quantity_sold']), qs[0]['quantity_sold'])
+            self.assertEquals(float(r['product_sales_revenue']), float(ps[0]['product_sales_revenue']))
     
+    def test_api_returns_product_sales_by_period_month(self):
+        """Tests that the api returns product sales by in a particular month"""
+        urldf = '%m-%d-%Y'
+        dateToCheck = datetime.strptime('11-01-2016', urldf) #Orders.objects.all().values('orderDate')[0]['orderDate']
+        dateToCheck = timezone.make_aware(dateToCheck, pytz.timezone('UTC'), is_dst=False)
+        sd = dateToCheck
+        ed = (dateToCheck + timedelta(days=31))
+        test_url = '/api/reporting/products/sales?startdate={sd}&enddate={ed}&interval=month'.format(
+                sd=sd.strftime(urldf),
+                ed=ed.strftime(urldf))
+        response = self.client.get(test_url)
+        oi = OrderItems.objects.filter(order__orderDate__range=[sd,ed]).values('product_id')\
+                .annotate(quantity_sold=Sum('quantity'), product_sales_revenue=Sum('price'))
+        body = json.loads(response.content)
+        for r in body['results']:
+            qs = oi.filter(product_id=r['product_id']).values('quantity_sold')
+            ps = oi.filter(product_id=r['product_id']).values('product_sales_revenue')
+            self.assertEquals(int(r['quantity_sold']), qs[0]['quantity_sold'])
+            self.assertEquals(float(r['product_sales_revenue']), float(ps[0]['product_sales_revenue']))
