@@ -47,9 +47,9 @@ def main():
         for i in range(1,random.randint(1,len(products))):
             orderItems.append(random.choice(products))
         order = OrderMethods.createOrder(orderItems, customer=c)
+        dateFormat = '%Y-%m-%d %H:%M:%S'
         enddate = datetime.datetime.now().__format__('%Y-%m-%d %H:%M:%S')
-        order.orderDate = randomDate('2016-11-01 00:00:00', enddate, random.random())
-        print(order.orderDate)
-        order.orderDate = timezone.make_aware(datetime.datetime.strptime(order.orderDate, '%Y-%m-%d %H:%M:%S'), pytz.timezone('America/Los_Angeles'))
+        od = randomDate('2016-11-01 00:00:00', enddate, random.random())
+        order.orderDate = timezone.make_aware(datetime.datetime.strptime(od, dateFormat), pytz.timezone('America/Los_Angeles'), is_dst=False)
         order.save()
 

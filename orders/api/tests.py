@@ -1,5 +1,6 @@
 from django.test import TestCase
 from django.db import connection
+import json
 from api.models import Customers, Products, Categories, Orders, OrderItems, ProductCategories
 from api.businessLogic import OrderMethods
 import generate_data
@@ -72,42 +73,14 @@ class DataModelTest(TestCase):
         saved_orders = Orders.objects.all()
         self.assertEqual(saved_orders[0].orderId, order.orderId)
 
-    def test_businessLogic_orders_creates_orders(self):
-        """Tests api/businessLogic OrderMethods.createOrder() creates orders"""
-        items = [Products.objects.create(name='13 inch MacBook Pro', price='1799.00'),
-                 Products.objects.create(name='15 inch MacBook Pro', price='1999.00'),
-                 Products.objects.create(name='17 inch MacBook Pro', price='2199.00')]
-        # create order manually
-        customer = Customers.objects.create(first_name='Bob',last_name='Smith')
-        orderTotal = sum(float(p.price) for p in items)
-        order = Orders.objects.create(orderTotal = orderTotal, customer=customer)
-        for p in items:
-            orderItem = OrderItems.objects.create(product=p, productName=p.name, price=p.price, quantity=1, order=order)
-
-        # Test order matches
-        saved_orders = Orders.objects.all()
-        order = OrderMethods.createOrder(items, customer=customer)
-        
-        # Check customer matches
-        self.assertEqual(saved_orders[0].customer, order.customer)
-        
-        # Check order total matches
-        self.assertEqual(saved_orders[0].orderTotal, order.orderTotal)
-
-        # Check order products match (items won't match as id's will be different)
-        orderProducts = lambda orderItems: [oi.product for oi in orderItems]
-        self.assertEqual(set(orderProducts(OrderItems.objects.filter(order=order))),
-                         set(orderProducts(OrderItems.objects.filter(order=saved_orders[0])))
-                         )
-
     def test_all_statuses_are_available(self):
         """Tests that all order statuses are available for use"""
         statuses = set(['waiting for delivery','on its way', 'delivered'])
         orderStatuses = set([d for (v, d) in Orders._meta.get_field('orderStatus').choices])
         self.assertEquals(statuses, orderStatuses)
 
-    def test_orders_can_have_status(self):
-        """Tests that orders can have status"""
+    def test_orders_can_have_a_status(self):
+        """Tests that orders can have a status"""
         items = [Products.objects.create(name='13 inch MacBook Pro', price='1799.00'),
                  Products.objects.create(name='15 inch MacBook Pro', price='1999.00'),
                  Products.objects.create(name='17 inch MacBook Pro', price='2199.00')]
@@ -126,7 +99,39 @@ class DataModelTest(TestCase):
 
         self.assertGreater(len(Orders.objects.filter(customer=customer)), 1)
 
+class LogicTest(TestCase):
+    def test_businessLogic_orders_creates_orders(self):
+        """Tests api/businessLogic OrderMethods.createOrder() creates orders"""
+        items = [Products.objects.create(name='13 inch MacBook Pro', price='1799.00'),
+                 Products.objects.create(name='15 inch MacBook Pro', price='1999.00'),
+                 Products.objects.create(name='17 inch MacBook Pro', price='2199.00')]
+        # create order manually
+        customer = Customers.objects.create(first_name='Bob',last_name='Smith')
+        orderTotal = sum(float(p.price) for p in items)
+        order = Orders.objects.create(orderTotal = orderTotal, customer=customer)
+        for p in items:
+            orderItem = OrderItems.objects.create(product=p, productName=p.name, price=p.price, quantity=1, order=order)
+        order = OrderMethods.createOrder(items, customer=customer)
+
+        # Test order matches
+        saved_orders = Orders.objects.all()
+        
+        # Check customer matches
+        self.assertEqual(saved_orders[0].customer, order.customer)
+        
+        # Check order total matches
+        self.assertEqual(saved_orders[0].orderTotal, order.orderTotal)
+
+        # Check order products match (items won't match as id's will be different)
+        orderProducts = lambda orderItems: [oi.product for oi in orderItems]
+        self.assertEqual(set(orderProducts(OrderItems.objects.filter(order=order))),
+                         set(orderProducts(OrderItems.objects.filter(order=saved_orders[0])))
+                         )
+
+
+class QueryTest(TestCase):
     def test_order_method_number_purchased_by_customer_by_category(self):
+        """Tests that sql query in question 3 and orm solution in question 4 match"""
         generate_data.main()
         
         def dictfetchall(cursor):
@@ -157,3 +162,23 @@ class DataModelTest(TestCase):
         for row in ormResults:
             self.assertIn(row, results)    
 
+class ViewsTest(TestCase):
+    @classmethod
+    def setUpClass(self):
+        super(ViewsTest, self).setUpClass()
+        generate_data.main()
+
+    def test_api_returns_orders_for_customer(self):
+        """Tests that the api returns orders for a particular customer"""
+
+        c = Customers.objects.all()
+        response = self.client.get('/api/customers/orders/' + str(c[0].customerId))
+        header, header_value = response._headers['content-type'] 
+        jsonResponse = json.loads(response.content)
+
+        self.assertEquals(header_value, 'application/json')
+        self.assertEquals(c[0].customerId, jsonResponse['customer']['customerId'])
+        orders = Orders.objects.filter(customer=c[0])
+        self.assertEquals(len(orders), len(jsonResponse['orders']))
+
+    

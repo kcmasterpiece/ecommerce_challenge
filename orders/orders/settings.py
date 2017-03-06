@@ -124,4 +124,4 @@ STATIC_URL = '/static/'
 
 # Testing
 TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
-NOSE_ARGS = ['--with-spec', '--spec-color']
+NOSE_ARGS = ['--spec-color']
