@@ -8,4 +8,5 @@ packaging==16.8
 pinocchio==0.4.2
 pyparsing==2.1.10
 pytz==2016.10
+simplejson==3.10.0
 six==1.10.0
