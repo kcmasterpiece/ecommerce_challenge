@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from django.test import TestCase
 from django.db import connection
 from django.db.models import Sum
@@ -186,8 +186,10 @@ class ViewsTest(TestCase):
         """Tests that the api returns product sales by in a particular week"""
         urldf = '%m-%d-%Y'
         dateToCheck = Orders.objects.all().values('orderDate')[0]['orderDate']
+        midnight = time(0)
+        sd = timezone.make_aware(datetime.combine(dateToCheck.date(), midnight), pytz.timezone('UTC'), is_dst=False)
         # set date to Sunday aka beginning of week
-        sd = (dateToCheck + timedelta(days=0-int(dateToCheck.strftime('%w'))))
+        sd = (sd + timedelta(days=0-int(dateToCheck.strftime('%w'))))
         ed = (sd + timedelta(weeks=1))
         test_url = '/api/reporting/products/sales?startdate={sd}&enddate={ed}&interval=week'.format(
                 sd=sd.strftime(urldf),
@@ -206,8 +208,9 @@ class ViewsTest(TestCase):
         """Tests that the api returns product sales by in a particular day"""
         urldf = '%m-%d-%Y'
         dateToCheck = Orders.objects.all().values('orderDate')[0]['orderDate']
-        sd = dateToCheck
-        ed = (dateToCheck + timedelta(days=1))
+        midnight = time(0)
+        sd = timezone.make_aware(datetime.combine(dateToCheck.date(), midnight), pytz.timezone('UTC'), is_dst=False)
+        ed = (sd + timedelta(days=1))
         test_url = '/api/reporting/products/sales?startdate={sd}&enddate={ed}&interval=day'.format(
                 sd=sd.strftime(urldf),
                 ed=ed.strftime(urldf))
@@ -216,8 +219,10 @@ class ViewsTest(TestCase):
                 .annotate(quantity_sold=Sum('quantity'), product_sales_revenue=Sum('price'))
         body = json.loads(response.content)
         for r in body['results']:
+            print(r)
             qs = oi.filter(product_id=r['product_id']).values('quantity_sold')
             ps = oi.filter(product_id=r['product_id']).values('product_sales_revenue')
+            print(qs, ps)
             self.assertEquals(int(r['quantity_sold']), qs[0]['quantity_sold'])
             self.assertEquals(float(r['product_sales_revenue']), float(ps[0]['product_sales_revenue']))
     
@@ -227,7 +232,8 @@ class ViewsTest(TestCase):
         dateToCheck = datetime.strptime('11-01-2016', urldf) #Orders.objects.all().values('orderDate')[0]['orderDate']
         dateToCheck = timezone.make_aware(dateToCheck, pytz.timezone('UTC'), is_dst=False)
         sd = dateToCheck
-        ed = (dateToCheck + timedelta(days=31))
+        ed = (dateToCheck + timedelta(days=30))
+        print(sd, ed)
         test_url = '/api/reporting/products/sales?startdate={sd}&enddate={ed}&interval=month'.format(
                 sd=sd.strftime(urldf),
                 ed=ed.strftime(urldf))
