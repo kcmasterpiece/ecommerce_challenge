@@ -17,9 +17,9 @@ Here is a coding challenge I recently completed using Python/django/mysql. I use
 	- I wrote some scripts that generate about a dozen randomized orders for about half a dozen customers so that I could validate reporting outputs without having to hard code a bunch of data.
 
 It was a fun challenge. Needless to say, there are many things I would improve if I kept working this, including:
-	- better urls/views structure within the project
-	- unittests that only use assert once
-	- security
-	- exception handling and checking that values provided by a user are valid and not malicious
-	- possibly using stored procedures and making sure that values sent directly into sql syntax are not sql injection attempts
+- better urls/views structure within the project
+- unittests that only use assert once
+- security
+- exception handling and checking that values provided by a user are valid and not malicious
+- possibly using stored procedures and making sure that values sent directly into sql syntax are not sql injection attempts
 
