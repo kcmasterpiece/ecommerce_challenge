@@ -9,7 +9,7 @@ Here is a coding challenge I recently completed using Python/django/mysql. I use
 
 - Reporting:
 	- Endpoint url `api/customers/orders/[customerId]` returns all orders for a customer
-	- Endpoint url `/api/reporting/products/sales?startdate=[startdate]&enddate=[enddate]&interval=[interval]` produces a report of product sales over a given period (date format MM-DD-YYYY) by a specified interval (options: day, week, month)
+	- Endpoint url `api/reporting/products/sales?startdate=[startdate]&enddate=[enddate]&interval=[interval]` produces a report of product sales over a given period (date format MM-DD-YYYY) by a specified interval (options: day, week, month)
 	- Both return JSON
 
  - Tests:
